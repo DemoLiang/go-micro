@@ -1,0 +1,5 @@
+app:
+  etcd:
+    enabled: true
+    host: 172.16.250.224
+    port: 2379

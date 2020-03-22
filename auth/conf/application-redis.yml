@@ -1,0 +1,11 @@
+app:
+  redis:
+    enabled: true
+    conn: 172.16.250.224:6379
+    db_num: 8
+    password: "123456"
+    timeout: 3000
+    sentinel:
+      enabled: false
+      master: bookMaster
+      nodes: 172.16.205.224:16379,127.0.0.1:26379,127.0.0.1:36379

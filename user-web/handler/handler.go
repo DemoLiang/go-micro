@@ -7,6 +7,7 @@ import (
 	"time"
 
 	user "github.com/DemoLiang/go-micro/user-srv/proto/user"
+	auth "github.com/DemoLiang/go-micro/auth/proto/auth"
 	"github.com/gin-gonic/gin"
 	"github.com/micro/go-micro/client"
 	"github.com/prometheus/common/log"
@@ -14,6 +15,7 @@ import (
 
 var (
 	serviceClient user.UserService
+	authClient auth.Service
 )
 
 type Error struct {
@@ -23,6 +25,7 @@ type Error struct {
 
 func Init() {
 	serviceClient = user.NewUserService("go.micro.lgm.srv.user", client.DefaultClient)
+	authClient = auth.NewService("go.micro.lgm.srv.auth",client.DefaultClient)
 }
 
 func Login(w http.ResponseWriter, r *http.Request) {
@@ -88,14 +91,26 @@ func LoginV2(ctx *gin.Context){
 		"ref": time.Now().UnixNano(),
 	}
 
-	//log.Info("-----%v",r.Form)
-	log.Info("====%v",rsp)
 	pwd:=ctx.PostForm("pwd")
 	if rsp.User.Pwd == pwd {
 		response["success"] = true
 
 		rsp.User.Pwd = ""
 		response["data"] = rsp.User
+		rsp2,err:=authClient.MakeAccessToken(context.TODO(),&auth.Request{
+			UserId:uint64(rsp.User.Id),
+			UserName:rsp.User.Name,
+		})
+		if err!=nil{
+			log.Error("[login] 创建token失败",err.Error())
+			return
+		}
+		response["token"] = rsp2.Token
+		expire:=time.Now().Add(30*time.Minute)
+		cookie := http.Cookie{Name: "remember-me-token", Value: rsp2.Token, Path: "/", Expires: expire, MaxAge: 90000}
+		ctx.SetCookie("remember-me-token",rsp2.Token,90000,"/","",http.SameSiteLaxMode,false,false)
+		_=cookie
+		log.Info("set cookie:%v",cookie)
 	} else {
 		response["success"] = false
 		response["error"] = &Error{
@@ -111,4 +126,9 @@ func LoginV2(ctx *gin.Context){
 	//	return
 	//}
 	ctx.JSON(200,response)
+}
+
+
+func Logout(ctx *gin.Context){
+
 }
